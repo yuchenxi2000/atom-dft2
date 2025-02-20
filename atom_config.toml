@@ -1,0 +1,42 @@
+version = '2.0'
+
+[params]
+rcut = 50.0
+#atomic_number = 8  # give the atomic number (H~Og, 1~118),
+element = 'O'  # or you can use this
+spin_polarized = true
+use_c = true  # if C dylib is used for acceleration. recommended to be true, remember to compile C dylib first
+[params.grid]
+type = 'exp'  # only exp grid is supported
+num_grids = 5501
+r0 = 1e-7
+
+[density]
+[density.initial]
+type = 'thomas-fermi'  # initial guess for density. only thomas-fermi supported
+[density.mixing]
+type = 'anderson'
+history_max_num = 10
+mixing = 0.0
+
+#[occupation]  # use this to set occupation manually. or you can use aufbau principle (the following section)
+#type = 'fixed'
+#configuration = '1s2 2s2 2p4'
+
+[occupation]
+type = 'aufbau'  # for neutral atoms only
+
+[calculation]
+max_steps = 200
+energy_eps = 1e-6
+vext_eps = 1e-3
+
+[output]
+#dir = '/path/to/your/output/dir'  # uncomment to output orbital data
+[output.plot]
+show = true
+use_latex = true  # if latex is not installed, set it to false
+show_orbitals = 'outmost'  # outmost, all. show the orbitals in the outmost shell, or all orbitals. WARNING: there are MANY orbitals for heavy elements!
+[output.print]
+energy = true
+configuration = true
