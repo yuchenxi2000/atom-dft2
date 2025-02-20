@@ -9,6 +9,7 @@
 #define radial_grid_hpp
 
 #include <iostream>
+#include <cstring>
 
 class radial_grid {
     double r0;
