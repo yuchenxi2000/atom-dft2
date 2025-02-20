@@ -98,7 +98,7 @@ Electron configuration of iron (Fe). 铁的电子组态
 |4s1| u| -0.2099875415087925|
 |4s1| d| -0.1826125021370353|
 
-Energy differences between $3d^{n+1}4s^1$ and $3d^n4s^2$ for transition metals. There are some discrepancies between theory and experiments caused by the local spin density approximation, which tends to underestimate the energy differences. Note that, except for Cr and Cu which have $3d^{n+1}4s^1$ configuration, other elements have $3d^n4s^2$ configuration from experiments. For more discussion please refer to Fig. 10.2 in Richard M. Martin, Electronic Structure. 过渡金属$3d^{n+1}4s^1$和$3d^n4s^2$组态下的能量差。图中的数据和实验有差别，因为LSDA会低估这个能量差。实验上，除了铬和铜的组态为$3d^{n+1}4s^1$，其他过渡金属元素的组态为$3d^n4s^2$。更详细的讨论请参考Richard M. Martin所著Electronic Structure中的图10.2。
+Energy differences between $3d^{n+1}4s^1$ and $3d^n4s^2$ for transition metals. There are some discrepancies between theory and experiments caused by the local spin density approximation, which tends to underestimate the energy differences. Note that, except for Cr and Cu which have $3d^{n+1}4s^1$ configuration, other elements have $3d^n4s^2$ configuration from experiments. For more discussion please refer to Fig. 10.2 in Richard M. Martin, Electronic Structure. 过渡金属 $3d^{n+1}4s^1$ 和 $3d^n4s^2$ 组态下的能量差。图中的数据和实验有差别，因为LSDA会低估这个能量差。实验上，除了铬和铜的组态为 $3d^{n+1}4s^1$ ，其他过渡金属元素的组态为 $3d^n4s^2$ 。更详细的讨论请参考Richard M. Martin所著Electronic Structure中的图10.2。
 
 ![transition elements](figs/transition-metal.png)
 
