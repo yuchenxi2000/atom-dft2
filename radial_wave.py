@@ -181,8 +181,7 @@ def count_nodes(wfn: np.ndarray, N: int) -> int:
 def get_eigen_radial_bisect(Emin: float, Emax: float, l: int, nr: int, Z: float, Vext: np.ndarray, grid: radial_grid, use_c: bool = False) -> float:
     while Emax - Emin >= 1e-9:
         E = 0.5 * (Emin + Emax)
-        wfn = solve_radial_from_zero(E, l, Z, Vext, grid, use_c=use_c)
-        num_nodes = count_nodes(wfn, grid.N)
+        wfn, num_nodes = solve_radial_from_zero(E, l, Z, Vext, grid, use_c=use_c)
         if num_nodes <= nr:
             Emin = E
         else:
@@ -242,14 +241,3 @@ def fix_wave_tail(wfn: np.ndarray, N: int) -> None:
 def normalize_wave(wfn: np.ndarray, grid: radial_grid):
     norm = 4.0 * np.pi * scipy.integrate.simpson(wfn[:, 0] ** 2 * grid.r) * grid.u_step
     wfn /= np.sqrt(norm)
-
-
-if __name__ == '__main__':
-    grid = radial_grid.exp_grid(2001, 1e-5, 100.0)
-
-    # wfn = solve_radial_from_zero(-0.5, 0, 1.0, np.zeros_like(grid.N), grid)
-    # plt.plot(grid.r, wfn)
-    # plt.show()
-
-    E = get_eigen_radial_bisect(-0.5, 0.0, 1, 0, 1.0, np.zeros_like(grid.r), grid)
-    print(E)

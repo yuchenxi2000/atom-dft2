@@ -15,13 +15,13 @@ class total_energy:
     eig_sum: float
 
 
-def get_total_energy(levels: list[configuration.Level], exc: np.ndarray, Vxc: np.ndarray, VH: np.ndarray, density_s: np.ndarray, Z: float, grid: radial_wave.radial_grid) -> total_energy:
+def get_total_energy(orbitals: list[configuration.Orbital], exc: np.ndarray, Vxc: np.ndarray, VH: np.ndarray, density_s: np.ndarray, Z: float, grid: radial_wave.radial_grid) -> total_energy:
     r = grid.r
     EH = 1/2 * 4 * np.pi * scipy.integrate.simpson(VH * np.sum(density_s, axis=1) * r ** 3) * grid.u_step
     Vxc_n = 4 * np.pi * scipy.integrate.simpson(np.sum(Vxc * density_s, axis=1) * r ** 3) * grid.u_step
     Exc = 4 * np.pi * scipy.integrate.simpson(np.sum(exc * density_s, axis=1) * r ** 3) * grid.u_step
     eig_sum = 0.0
-    for orb in levels:
+    for orb in orbitals:
         eig_sum += orb.occ * orb.eig
     Eenuc = -Z * 4 * np.pi * scipy.integrate.simpson(np.sum(density_s, axis=1) * r ** 2) * grid.u_step
     Ekin = eig_sum - 2 * EH - Eenuc - Vxc_n

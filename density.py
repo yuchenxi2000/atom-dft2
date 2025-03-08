@@ -4,10 +4,10 @@ import configuration
 import radial_wave
 
 
-def get_density_r2s(levels: list[configuration.Level], N: int, nspin: int):
+def get_density_r2s(orbitals: list[configuration.Orbital], N: int, nspin: int):
     density_r2s = np.zeros([N, nspin])
-    for level in levels:
-        density_r2s[:, level.s] += level.occ * level.wfn[:, 0] ** 2
+    for orb in orbitals:
+        density_r2s[:, orb.s] += orb.occ * orb.wfn[:, 0] ** 2
     return density_r2s
 
 

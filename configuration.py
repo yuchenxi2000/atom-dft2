@@ -1,10 +1,12 @@
 import dataclasses
 import numpy as np
 import orbital_type
+import re
+import radial_wave
 
 
 @dataclasses.dataclass
-class Level:
+class Orbital:
     nr: int  # radial quantum number
     l: int  # angular quantum number
     s: int  # spin quantum number
@@ -25,8 +27,46 @@ class Level:
         else:
             return 2 * (2 * self.l + 1)
 
+    def get_str(self, include_occ: bool = True, latex: bool = False) -> str:
+        if latex:
+            if self.spin_polarized:
+                spin_str = '\\uparrow' if self.s == 0 else '\\downarrow'
+            else:
+                spin_str = ''
+            occ_str = '^{' + str(self.occ) + '}' if include_occ else ''
+            return f'${self.n}{orbital_type.orb_type_map[self.l]}{occ_str}{spin_str}$'
+        else:
+            if self.spin_polarized:
+                spin_str = 'u' if self.s == 0 else 'd'
+            else:
+                spin_str = ''
+            occ_str = str(self.occ) if include_occ else ''
+            return f'{self.n}{orbital_type.orb_type_map[self.l]}{occ_str}{spin_str}'
 
-def set_occupation(orbitals: list[Level], Z: int):
+    @classmethod
+    def from_str(cls, orb_str: str, eig: float, wfn: np.ndarray):
+        match_res = re.match(r'([0-9]+)([a-z])([0-9]*)(.*)', orb_str)
+        n = int(match_res.group(1))
+        l = orbital_type.orb_type_map_inv[match_res.group(2)]
+        occ_str = match_res.group(3)
+        if occ_str == '':
+            occ = 0
+        else:
+            occ = int(occ_str)
+        spin_str = match_res.group(4)
+        if spin_str == 'u':
+            spin_polarized = True
+            spin = 0
+        elif spin_str == 'd':
+            spin_polarized = True
+            spin = 1
+        else:
+            spin_polarized = False
+            spin = 0
+        return cls(nr=n - l - 1, l=l, occ=occ, s=spin, spin_polarized=spin_polarized, eig=eig, wfn=wfn)
+
+
+def set_occupation(orbitals: list[Orbital], Z: int):
     # assume that the atoms try to maximize spin (Hund's rule)
     elec_remain = Z
     for orb in orbitals:
@@ -114,7 +154,7 @@ def get_configuration(Z: int) -> dict[(int, int), int]:
     return config_map
 
 
-def set_fixed_occupation(orbitals: list[Level], config_map: dict[(int, int), int], spin_polarized: bool):
+def set_fixed_occupation(orbitals: list[Orbital], config_map: dict[(int, int), int], spin_polarized: bool):
     # assume that the atoms try to maximize spin (Hund's rule)
     for orb in orbitals:
         n = orb.n
@@ -147,22 +187,17 @@ def get_nr_max_for_l(config_map: dict[(int, int), int]) -> dict[int, int]:
     return nr_max_l_map
 
 
-def get_orbital_name(orb: Level, spin_polarized: bool, latex: bool = False):
-    if latex:
-        if spin_polarized:
-            spin_str = '\\uparrow$' if orb.s == 0 else '\\downarrow$'
-        else:
-            spin_str = '$'
-        return f'${orb.n}{orbital_type.orb_type_map[orb.l]}^' + '{' + f'{orb.occ}' + '}' + spin_str
-    else:
-        if spin_polarized:
-            spin_str = ' u' if orb.s == 0 else ' d'
-        else:
-            spin_str = ''
-        return f'{orb.n}{orbital_type.orb_type_map[orb.l]}{orb.occ}' + spin_str
-
-
-def print_orbitals(orbitals: list[Level], spin_polarized: bool, unoccupied: bool = False):
-    for orb in orbitals:
-        if orb.occ > 0 or unoccupied:
-            print(f'{get_orbital_name(orb, spin_polarized)} {orb.eig}')
+def get_orbitals(Z: float, nspin: int, Vext: np.ndarray, grid: radial_wave.radial_grid, nr_max_l_map: dict[int, int], use_c: bool = False) -> list[Orbital]:
+    levels = []
+    for s in range(nspin):
+        for l in nr_max_l_map:
+            nr_max = nr_max_l_map[l]
+            Emin = -0.6 * Z * Z / (l + 1) ** 2  # empirical guess
+            Emax = 10.0
+            for nr in range(nr_max+1):
+                E, wfn = radial_wave.get_eigen_radial_combined(Emin, Emax, l, nr, Z, Vext[:, s], grid, use_c=use_c)
+                radial_wave.normalize_wave(wfn, grid)
+                level = Orbital(nr, l, s, E, 0, wfn, nspin == 2)
+                levels.append(level)
+                Emin = E
+    return levels

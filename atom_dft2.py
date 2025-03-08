@@ -16,30 +16,13 @@ import pylibxc
 import configuration
 import density
 import energy
-import orbital_type
 import poisson
 import radial_wave
 import xc_func
 import tomllib
 import argparse
 import periodic_table
-
-
-def get_levels(nr_max_l_map: dict[int, int], Z: float, Vext: np.ndarray, grid: radial_wave.radial_grid, use_c: bool = False) -> list[configuration.Level]:
-    levels = []
-    for s in range(nspin):
-        for l in nr_max_l_map:
-            nr_max = nr_max_l_map[l]
-            Emin = -0.6 * Z * Z / (l + 1) ** 2  # empirical guess
-            Emax = 10.0
-            for nr in range(nr_max+1):
-                E, wfn = radial_wave.get_eigen_radial_combined(Emin, Emax, l, nr, Z, Vext[:, s], grid, use_c=use_c)
-                radial_wave.normalize_wave(wfn, grid)
-                level = configuration.Level(nr, l, s, E, 0, wfn, nspin == 2)
-                levels.append(level)
-                Emin = E
-    return levels
-
+import data_io
 
 # parse arguments
 parser = argparse.ArgumentParser(description='Density functional theory of isolated atoms (v2.0), author: YCX')
@@ -90,10 +73,10 @@ nr_max_l_map = configuration.get_nr_max_for_l(config_map)
 
 # initial Vext
 VH, dVH = poisson.solve_poisson(np.sum(density_s, axis=1), grid, use_c=use_c)
-Vxc, exc = xc_func.get_Vxc_exc(density_s, x_func, c_func)
+Vxc, exc = xc_func.get_Vxc_exc_lda(density_s, x_func, c_func)
 Vext = np.expand_dims(VH, axis=1) + Vxc
 
-levels = []
+orbitals = []
 step = 0
 max_step = config['calculation']['max_steps']
 Eprev = 0.0
@@ -105,19 +88,19 @@ Vext_eps = config['calculation']['vext_eps']
 mixing_beta = config['density']['mixing']['mixing']
 while step < max_step:
     # get orbitals
-    levels = get_levels(nr_max_l_map, Z, Vext, grid, use_c=use_c)
+    orbitals = configuration.get_orbitals(Z, nspin, Vext, grid, nr_max_l_map, use_c=use_c)
     # set occupation
-    configuration.set_fixed_occupation(levels, config_map, nspin == 2)
+    configuration.set_fixed_occupation(orbitals, config_map, nspin == 2)
     # get new density
-    density_s = density.get_density_r2s(levels, N, nspin) / np.expand_dims(r, axis=1) ** 2
+    density_s = density.get_density_r2s(orbitals, N, nspin) / np.expand_dims(r, axis=1) ** 2
     # get VH
     VH, dVH = poisson.solve_poisson(np.sum(density_s, axis=1), grid, use_c=use_c)
     # get Vxc, exc
-    Vxc, exc = xc_func.get_Vxc_exc(density_s, x_func, c_func)
+    Vxc, exc = xc_func.get_Vxc_exc_lda(density_s, x_func, c_func)
     # Vext
     Vext_new = np.expand_dims(VH, axis=1) + Vxc
     # get energy
-    Etot = energy.get_total_energy(levels, exc, Vxc, VH, density_s, Z, grid).Etot
+    Etot = energy.get_total_energy(orbitals, exc, Vxc, VH, density_s, Z, grid).Etot
     # converged?
     norm = np.linalg.norm(Vext_new - Vext)
     if abs(Etot - Eprev) < energy_eps and norm < Vext_eps:
@@ -139,7 +122,7 @@ while step < max_step:
 
 # print energy
 if config['output']['print']['energy']:
-    energy_parts = energy.get_total_energy(levels, exc, Vxc, VH, density_s, Z, grid)
+    energy_parts = energy.get_total_energy(orbitals, exc, Vxc, VH, density_s, Z, grid)
     print(f'Etot = {energy_parts.Etot}')
     print(f'Ekin = {energy_parts.Ekin}')
     print(f'Ecoul = {energy_parts.EH}')
@@ -147,8 +130,10 @@ if config['output']['print']['energy']:
     print(f'Exc = {energy_parts.Exc}')
 # print levels
 if config['output']['print']['configuration']:
-    levels.sort(key=lambda lvl: lvl.eig)
-    configuration.print_orbitals(levels, nspin == 2, unoccupied=True)
+    orbitals.sort(key=lambda lvl: lvl.eig)
+    for orb in orbitals:
+        if orb.occ > 0:
+            print(f'{orb.get_str(include_occ=True, latex=False)} {orb.eig}')
 
 # output files
 if 'dir' in config['output']:
@@ -159,23 +144,14 @@ if 'dir' in config['output']:
     VH.tofile(f'{out_dir}/VH.bin')
     dVH.tofile(f'{out_dir}/dVH.bin')
     Vxc.tofile(f'{out_dir}/Vxc.bin')
-    with open(f'{out_dir}/level.txt', 'w') as flevel:
-        for orb in levels:
-            flevel.write(f'{configuration.get_orbital_name(orb, nspin == 2)} {orb.eig}\n')
-    for orb in levels:
-        if nspin == 2:
-            spin_str = 'u' if orb.s == 0 else 'd'
-        else:
-            spin_str = ''
-        orb_name = f'{orb.n}{orbital_type.orb_type_map[orb.l]}{spin_str}'
-        orb.wfn.tofile(f'{out_dir}/wfn_{orb_name}.bin')
+    data_io.write_orbitals_to_dir(orbitals, out_dir)
     with open(f'{out_dir}/energy.txt', 'w') as fenergy:
         fenergy.write(f'spin = {nspin}\n')
         fenergy.write(f'Z = {Z}\n')
         fenergy.write(f'element = {element}\n')
         fenergy.write(f'configuration = {configuration.get_configuration_str_from_config_map(config_map)}\n')
         fenergy.write(f'steps = {step}\n')
-        energy_parts = energy.get_total_energy(levels, exc, Vxc, VH, density_s, Z, grid)
+        energy_parts = energy.get_total_energy(orbitals, exc, Vxc, VH, density_s, Z, grid)
         fenergy.write(f'Etot = {energy_parts.Etot}\n')
         fenergy.write(f'Ekin = {energy_parts.Ekin}\n')
         fenergy.write(f'Ecoul = {energy_parts.EH}\n')
@@ -200,12 +176,12 @@ if config['output']['plot']['show']:
     # wave (r phi)
     plt.subplot(212)
     plt.title('Wave function ($r\\psi$)' if use_latex else 'Wave function (r psi)')
-    for level in levels:
-        if level.occ > 0:
-            if config['output']['plot']['show_orbitals'] == 'all' or level.eig > -1.837:
+    for orb in orbitals:
+        if orb.occ > 0:
+            if config['output']['plot']['show_orbitals'] == 'all' or orb.eig > -1.837:
                 # the criterion for outer shells (eig larger than -1.837 Hatree or -50.0 eV) is not precise.
                 # may be improved in the future.
-                plt.plot(r, level.wfn[:, 0], label=configuration.get_orbital_name(level, nspin == 2, use_latex))
+                plt.plot(r, orb.wfn[:, 0], label=orb.get_str(include_occ=True, latex=use_latex))
     plt.ylim([-0.4, 0.4])
     plt.xlim([-1, 9])
     plt.legend()
