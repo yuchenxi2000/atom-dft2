@@ -3,10 +3,13 @@ import numpy as np
 import sys
 import pathlib
 
+# directory containing C lib
+clib_dir = pathlib.Path(__file__).parent
+
 if sys.platform.startswith('win'):  # Windows
-    libatomdft = ctypes.CDLL('libatomdft', winmode=0)
+    libatomdft = ctypes.CDLL(str(clib_dir.joinpath('libatomdft')), winmode=0)
 else:  # macOS, Linux
-    libatomdft = np.ctypeslib.load_library(libname='libatomdft', loader_path=pathlib.Path(__file__).parent)
+    libatomdft = np.ctypeslib.load_library(libname='libatomdft', loader_path=clib_dir)
 
 # int solve_radial_from_zero(double * chi, double * dchi, double E, int l, double Z, double * Vext, double r0, double rc, int N);
 libatomdft.solve_radial_from_zero.argtypes = [
