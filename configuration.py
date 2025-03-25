@@ -65,6 +65,12 @@ class Orbital:
             spin = 0
         return cls(nr=n - l - 1, l=l, occ=occ, s=spin, spin_polarized=spin_polarized, eig=eig, wfn=wfn)
 
+    def __str__(self):
+        return self.get_str(include_occ=True, latex=False)
+
+    def __repr__(self):
+        return '<Orbital ' + self.get_str(include_occ=True, latex=False) + '>'
+
 
 def set_occupation(orbitals: list[Orbital], Z: int):
     # assume that the atoms try to maximize spin (Hund's rule)
@@ -188,7 +194,7 @@ def get_nr_max_for_l(config_map: dict[(int, int), int]) -> dict[int, int]:
 
 
 def get_orbitals(Z: float, nspin: int, Vext: np.ndarray, grid: radial_wave.radial_grid, nr_max_l_map: dict[int, int], use_c: bool = False) -> list[Orbital]:
-    levels = []
+    orbitals = []
     for s in range(nspin):
         for l in nr_max_l_map:
             nr_max = nr_max_l_map[l]
@@ -197,7 +203,7 @@ def get_orbitals(Z: float, nspin: int, Vext: np.ndarray, grid: radial_wave.radia
             for nr in range(nr_max+1):
                 E, wfn = radial_wave.get_eigen_radial_combined(Emin, Emax, l, nr, Z, Vext[:, s], grid, use_c=use_c)
                 radial_wave.normalize_wave(wfn, grid)
-                level = Orbital(nr, l, s, E, 0, wfn, nspin == 2)
-                levels.append(level)
+                orbital = Orbital(nr, l, s, E, 0, wfn, nspin == 2)
+                orbitals.append(orbital)
                 Emin = E
-    return levels
+    return orbitals
